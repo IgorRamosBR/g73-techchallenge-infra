@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - ~/apps/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=g73_lanches
+
+  dynamodb-local:
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+
+  # create-payment-dynamo-table:
+  #   depends_on:
+  #     - dynamodb-local
+  #   image: amazon/aws-cli:2.15.45
+  #   container_name: create-payment-table
+  #   ports:
+  #     - "8001:8001"
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+  #     AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
+  #   command: dynamodb create-table --table-name Payment --attribute-definitions AttributeName=OrderId,AttributeType=N --key-schema AttributeName=OrderId,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 --table-class STANDARD --endpoint-url http://dynamodb-local:8000 --region us-east-1 
+  
+  # create-kitchen-dynamo-table:
+  #   depends_on:
+  #     - dynamodb-local
+  #   image: amazon/aws-cli:2.15.45
+  #   container_name: create-kitchen-table
+  #   ports:
+  #     - "8002:8002"
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+  #     AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
+  #   command: >
+  #     sh -c "
+  #     dynamodb create-table \
+  #     --table-name Kitchen \
+  #     --attribute-definitions \
+  #         AttributeName=PK,AttributeType=S \
+  #         AttributeName=SK,AttributeType=S \
+  #         AttributeName=GSI1PK,AttributeType=S \
+  #         AttributeName=GSI1SK,AttributeType=S \
+  #     --key-schema \
+  #         AttributeName=PK,KeyType=HASH \
+  #         AttributeName=SK,KeyType=RANGE \
+  #     --global-secondary-indexes \
+  #         'IndexName=SecondaryIndex,KeySchema=[{AttributeName=GSI1PK,KeyType=HASH},{AttributeName=GSI1SK,KeyType=RANGE}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5}' \
+  #     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+  #     --table-class STANDARD \
+  #     --endpoint-url http://dynamodb-local:8000/ \
+  #     --region us-east-1
+  #     "
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=techchallenge
+      - RABBITMQ_DEFAULT_PASS=admin123
+    volumes:
+      - ./init/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./init/definitions.json:/etc/rabbitmq/definitions.json:ro
