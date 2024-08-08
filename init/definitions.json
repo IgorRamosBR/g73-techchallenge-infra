@@ -97,7 +97,7 @@
         {
             "source": "order_events",
             "vhost": "/",
-            "destination": "orders_inprogess_queue",
+            "destination": "orders_inprogress_queue",
             "destination_type": "queue",
             "routing_key": "orders.inprogess",
             "arguments": {}

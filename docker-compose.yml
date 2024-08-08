@@ -9,6 +9,8 @@ services:
       - POSTGRES_PASSWORD=admin
       - POSTGRES_USER=admin
       - POSTGRES_DB=g73_lanches
+    networks:
+      - app-network
 
   dynamodb-local:
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
@@ -20,19 +22,6 @@ services:
       - "./docker/dynamodb:/home/dynamodblocal/data"
     working_dir: /home/dynamodblocal
 
-  # create-payment-dynamo-table:
-  #   depends_on:
-  #     - dynamodb-local
-  #   image: amazon/aws-cli:2.15.45
-  #   container_name: create-payment-table
-  #   ports:
-  #     - "8001:8001"
-  #   environment:
-  #     AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
-  #     AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
-  #   command: dynamodb create-table --table-name Payment --attribute-definitions AttributeName=OrderId,AttributeType=N --key-schema AttributeName=OrderId,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 --table-class STANDARD --endpoint-url http://dynamodb-local:8000 --region us-east-1 
-  
-  
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -44,3 +33,71 @@ services:
     volumes:
       - ./init/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./init/definitions.json:/etc/rabbitmq/definitions.json:ro
+    networks:
+      - app-network
+
+  g73-order-api:
+    image: igorramos/g73-order-api:production
+    ports:
+      - "8080:8080"
+    restart: on-failure
+    environment:
+      PORT: '8080'
+      AUTHORIZER_URL: 'https://fzmgicpudl.execute-api.us-east-1.amazonaws.com/v1/authorize'
+      POSTGRES_HOST: 'postgres'
+      POSTGRES_DB: 'g73_lanches'
+      POSTGRES_PORT: '5432'
+      POSTGRES_SSLMODE: "?sslmode=disable"
+      POSTGRES_USER: 'admin'
+      POSTGRES_PASSWORD: 'admin'
+      PAYMENT_URL: 'http://localhost:8081/v1/paymentOrder'
+      DEFAULT_TIMEOUT: '500ms'
+      MIGRATIONS_PATH: './migrations'
+      ORDER_EVENTS_BROKER_URL: 'amqp://techchallenge:admin123@rabbitmq:5672/'
+      ORDER_EVENTS_TOPIC: 'order_events'
+      ORDER_EVENTS_PAID_QUEUE: 'orders_payment_queue'
+      ORDER_EVENTS_READY_QUEUE: 'orders_ready_queue'
+      ORDER_EVENTS_IN_PROGRESS_DESTINATION: 'orders.inprogress'
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - app-network
+
+  g73-payment-api:
+    image: igorramos/g73-payment-api:production
+    restart: on-failure
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      ENVIRONMENT: "local"
+      CONFIG_DIR_PATH: "../configs"
+      ORDER_EVENTS_BROKER_URL: "amqp://techchallenge:admin123@rabbitmq:5672/"
+    networks:
+      - app-network
+    depends_on:
+      - dynamodb-local
+  
+  g73-kitchen-api:
+    image: igorramos/g73-kitchen-api:production
+    restart: on-failure
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: "8082"
+      ORDER_TABLE: "Kitchen"
+      ORDER_TABLE_ENDPOINT": "http://localhost:8000/"
+      ORDER_EVENTS_BROKER_URL: "amqp://techchallenge:admin123@rabbitmq:5672/"
+      ORDER_EVENTS_TOPIC: "order_events"
+      ORDER_EVENTS_IN_PROGRESS_QUEUE: "orders_inprogress_queue"
+      ORDER_EVENTS_READY_QUEUE: "ORDER_EVENTS_READY_QUEUE"
+      ORDER_READY_EVENTS_DESTINATION: "orders.ready"
+    networks:
+      - app-network
+    depends_on:
+      - dynamodb-local
+
+networks:
+  app-network:
+    driver: bridge
