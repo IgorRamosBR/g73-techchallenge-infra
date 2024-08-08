@@ -43,7 +43,7 @@ services:
     restart: on-failure
     environment:
       PORT: '8080'
-      AUTHORIZER_URL: 'https://fzmgicpudl.execute-api.us-east-1.amazonaws.com/v1/authorize'
+      AUTHORIZER_URL: 'https://9rc1jm5xab.execute-api.us-east-1.amazonaws.com/prod/authorize'
       POSTGRES_HOST: 'postgres'
       POSTGRES_DB: 'g73_lanches'
       POSTGRES_PORT: '5432'
