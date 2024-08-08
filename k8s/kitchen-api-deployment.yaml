@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: g73-kitchen-api-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: g73-kitchen-api
+  template:
+    metadata:
+      labels:
+        app: g73-kitchen-api
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: g73-kitchen-api
+          image: igorramos/g73-kitchen-api:production
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          env:
+            - name: PORT
+              value: "8082"
+            - name: ORDER_TABLE
+              value: "Kitchen"
+            - name: ORDER_EVENTS_BROKER_URL
+              value: "amqp://techchallenge:admin123@rabbitmq:5672/"
+            - name: ORDER_EVENTS_TOPIC
+              value: "order_events"
+            - name: ORDER_EVENTS_IN_PROGRESS_QUEUE
+              value: "orders_inprogress_queue"
+            - name: ORDER_EVENTS_READY_QUEUE
+              value: "ORDER_EVENTS_READY_QUEUE"
+            - name: ORDER_READY_EVENTS_DESTINATION
+              value: "orders.ready"
+
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: "512Mi"
+            requests:
+              cpu: "0.25"
+              memory: "256Mi"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: role
+                    operator: In
+                    values:
+                      - general

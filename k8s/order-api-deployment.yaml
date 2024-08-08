@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: g73-order-api-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: g73-order-api
+  template:
+    metadata:
+      labels:
+        app: g73-order-api
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: g73-order-api
+          image: igorramos/g73-order-api:production
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: '8080'
+            - name: AUTHORIZER_URL
+              value: 'https://fzmgicpudl.execute-api.us-east-1.amazonaws.com/v1/authorize'
+            - name: POSTGRES_HOST
+              value: 'g73-techchallenge-db.cdipsseckygn.us-east-1.rds.amazonaws.com'
+            - name: POSTGRES_DB
+              value: 'techchallengedb'
+            - name: POSTGRES_PORT
+              value: '5432'
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+            - name: PAYMENT_URL
+              value: 'g73-payment-api/v1/paymentOrder'
+            - name: DEFAULT_TIMEOUT
+              value: '500ms'
+            - name: MIGRATIONS_PATH
+              value: './migrations'
+            - name: ORDER_EVENTS_BROKER_URL
+              value: 'amqp://techchallenge:admin123@rabbitmq:5672/'
+            - name: ORDER_EVENTS_TOPIC
+              value: 'order_events'
+            - name: ORDER_EVENTS_PAID_QUEUE
+              value: 'orders_payment_queue'
+            - name: ORDER_EVENTS_READY_QUEUE
+              value: 'orders_ready_queue'
+            - name: ORDER_EVENTS_IN_PROGRESS_DESTINATION
+              value: 'orders.inprogress'
+            
+                
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: "512Mi"
+            requests:
+              cpu: "0.25"
+              memory: "256Mi"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: role
+                operator: In
+                values:
+                - general
